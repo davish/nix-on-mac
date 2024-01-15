@@ -7,9 +7,13 @@
       url = "github:LnL7/nix-darwin";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    home-manager = {
+      url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = inputs@{ self, nix-darwin, nixpkgs }:
+  outputs = inputs@{ self, nixpkgs, nix-darwin, home-manager }:
     let
       configuration = { pkgs, ... }: {
 
@@ -48,11 +52,51 @@
           casks = [ ];
         };
       };
+      homeconfig = { pkgs, ... }: {
+        # this is internal compatibility configuration for home-manager, 
+        # don't change this!
+        home.stateVersion = "23.05";
+        # Let home-manager install and manage itself.
+        programs.home-manager.enable = true;
+
+        home.packages = with pkgs; [ ];
+
+        home.sessionVariables = {
+          EDITOR = "vim";
+        };
+
+        home.file.".vimrc".source = ./vim_configuration;
+
+        programs.zsh = {
+          enable = true;
+          shellAliases = {
+            switch = "darwin-rebuild switch --flake ~/.config/nix";
+          };
+        };
+
+        programs.git = {
+          enable = true;
+          userName = "$FIRSTNAME $LASTNAME";
+          userEmail = "me@example.com";
+          ignores = [ ".DS_Store" ];
+          extraConfig = {
+            init.defaultBranch = "main";
+            push.autoSetupRemote = true;
+          };
+        };
+      };
     in
     {
       darwinConfigurations."$HOSTNAME" = nix-darwin.lib.darwinSystem {
         modules = [
           configuration
+          home-manager.darwinModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.verbose = true;
+            home-manager.users.$USER = homeconfig;
+          }
         ];
       };
     };

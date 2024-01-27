@@ -11,12 +11,20 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    mac-app-util.url = "github:hraban/mac-app-util";
+    nix-vscode-extensions.url = "github:nix-community/nix-vscode-extensions";
   };
 
-  outputs = inputs@{ self, nixpkgs, nix-darwin, home-manager }:
+  outputs =
+    inputs@{ self
+    , nixpkgs
+    , nix-darwin
+    , home-manager
+    , mac-app-util
+    , nix-vscode-extensions
+    }:
     let
       configuration = { pkgs, ... }: {
-
         services.nix-daemon.enable = true;
         # Necessary for using flakes on this system.
         nix.settings.experimental-features = "nix-command flakes";
@@ -30,6 +38,11 @@
         # The platform the configuration will be used on.
         # If you're on an older system, replace with "x86_64-darwin"
         nixpkgs.hostPlatform = "aarch64-darwin";
+        nixpkgs.config.allowUnfree = true;
+
+        nixpkgs.overlays = [
+          nix-vscode-extensions.overlays.default
+        ];
 
         # Declare the user that will be running `nix-darwin`.
         users.users.$USER = {
@@ -59,7 +72,10 @@
         # Let home-manager install and manage itself.
         programs.home-manager.enable = true;
 
-        home.packages = with pkgs; [ ];
+        home.packages = with pkgs;[
+          nixpkgs-fmt
+          coreutils-full
+        ];
 
         home.sessionVariables = {
           EDITOR = "vim";
@@ -84,20 +100,55 @@
             push.autoSetupRemote = true;
           };
         };
+        programs.vscode = {
+          enable = true;
+
+          userSettings = {
+            # This property will be used to generate settings.json:
+            # https://code.visualstudio.com/docs/getstarted/settings#_settingsjson
+            "editor.formatOnSave" = true;
+            "workbench.colorTheme" = "Dracula Theme";
+          };
+          keybindings = [
+            # See https://code.visualstudio.com/docs/getstarted/keybindings#_advanced-customization
+            {
+              key = "shift+cmd+j";
+              command = "workbench.action.focusActiveEditorGroup";
+              when = "terminalFocus";
+            }
+          ];
+
+          # Some extensions require you to reload vscode, but unlike installing
+          # from the marketplace, no one will tell you that. So after running
+          # `darwin-rebuild switch`, make sure to restart vscode!
+          extensions = with pkgs.vscode-marketplace; [
+            # Search for vscode-extensions on https://search.nixos.org/packages
+            dracula-theme.theme-dracula
+            jnoortheen.nix-ide
+            vscodevim.vim
+          ];
+        };
       };
     in
     {
       darwinConfigurations."$HOSTNAME" = nix-darwin.lib.darwinSystem {
         modules = [
           configuration
+          mac-app-util.darwinModules.default
           home-manager.darwinModules.home-manager
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.verbose = true;
+
+            home-manager.sharedModules = [
+              mac-app-util.homeManagerModules.default
+            ];
+
             home-manager.users.$USER = homeconfig;
           }
         ];
       };
     };
 }
+

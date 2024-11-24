@@ -4,3 +4,4 @@ This repository contains the configuration for my "Nix on Mac" series. Each part
 
 - [Part 1](https://github.com/davish/nix-on-mac/tree/part-1): nix-darwin, nixpkgs and homebrew
 - [Part 2](https://github.com/davish/nix-on-mac/tree/part-2): dotfiles and program configuration with home-manager
+- [Part 3](https://github.com/davish/nix-on-mac/tree/part-3): managing VSCode with home-manager
